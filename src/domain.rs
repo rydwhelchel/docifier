@@ -85,3 +85,14 @@ impl std::fmt::Display for CliArguments {
     }
 }
 
+
+#[test]
+fn test_subjects() {
+    //Subjects error type is infallible, so this test _should_ be pointless
+    let subjects = Subjects::try_from("asdf,fdsa,1234,4321").unwrap();
+    //Disgusting test...
+    assert_eq!(&"asdf".to_string(), subjects.subjects.get(0).unwrap());
+    assert_eq!(&"fdsa".to_string(), subjects.subjects.get(1).unwrap());
+    assert_eq!(&"1234".to_string(), subjects.subjects.get(2).unwrap());
+    assert_eq!(&"4321".to_string(), subjects.subjects.get(3).unwrap())
+}
