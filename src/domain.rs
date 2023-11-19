@@ -10,6 +10,28 @@ pub struct Targets {
     targets: Vec<String>
 }
 
+///Iterator wrapper which stores the index state of our iterator
+/// Without this wrapper, we would have to store inedex in Targets... which is just wrong
+pub struct TargetsIterator <'a> {
+    targets: &'a Targets,
+    index: usize,
+}
+
+impl<'a> Iterator for TargetsIterator<'a> {
+    //This is a pattern I really will need to get familiar with
+    type Item = &'a String;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.index < self.targets.targets.len() {
+            let result = Some(&self.targets.targets[self.index]);
+            self.index += 1;
+            result
+        } else {
+            None
+        }
+    }
+}
+
 impl Targets {
     fn new() -> Targets {
         Targets { targets: Vec::new() }
@@ -17,6 +39,26 @@ impl Targets {
 
     fn push(&mut self, s: String) {
         self.targets.push(s);
+    }
+
+    //Awesome! I like this pattern now :)
+    pub fn iter(&self) -> TargetsIterator {
+        TargetsIterator {
+            targets: self,
+            index: 0,
+        }
+    }
+
+    // Special logic to ensure that when user input is just the return key (nothing entered)
+    // then it is treated as a 0 length vec, instead of 1 length with a "" as the value
+    pub fn len(&self) -> usize {
+        if self.targets.len() == 1 {
+            if self.targets.get(0).unwrap().len() > 0 {
+                return self.targets.len();
+            }
+            return 0;
+        }
+        self.targets.len()
     }
 }
 
