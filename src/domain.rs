@@ -57,7 +57,7 @@ impl std::str::FromStr for Targets {
 #[derive(Subcommand)]
 pub enum Commands {
     Prompt,
-    Line(OneLineArguments)
+    Line(PromotionBatch)
 }
 
 #[derive(Parser)]
@@ -66,36 +66,36 @@ pub struct CliArguments {
     pub command: Commands,
 }
 
-/// Contains all information passed to the CLI on initial call
+/// Contains all information needed to document a batch
 ///     Instance: name of instance containing the environments
 ///     Source: name of the source environment which we want to promote from
 ///     Destination: name of the destination environment which we want to promote to
 ///     PromotionType: Type that is getting promoted (object/image)
 ///     Targets: comma separated list of objects/images which we want to promote
 #[derive(Parser, Debug)]
-pub struct OneLineArguments {
-    #[arg(short, long)]
+pub struct PromotionBatch {
+    // #[arg(short, long)]
     pub instance: String,
 
-    #[arg(short, long)]
+    // #[arg(short, long)]
     pub source: String,
 
-    #[arg(short, long)]
+    // #[arg(short, long)]
     pub destination: String,
 
     // Temporarily a string, might be worth making this an Enum? (if I can figure it out)
     // Should have `images`, `config-maps`, `secrets`, potentially `templates`
-    #[arg(short, long)]
+    // #[arg(short, long)]
     pub promotion_type: String, 
 
-    #[arg(short, long)]
+    // #[arg(short, long)]
     pub targets: Targets
 }
 
-impl std::fmt::Display for OneLineArguments {
+impl std::fmt::Display for PromotionBatch {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f,
-            "(Instance {}, {}->{}, of type {}, [{}])",
+            "(Instance: {}, Path: {}->{}, Promotion Type: {}, {})",
             &self.instance,
             &self.source, &self.destination,
             &self.promotion_type,
