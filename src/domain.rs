@@ -1,18 +1,18 @@
+use clap::{parser, Parser, Subcommand};
 use std::convert::Infallible;
-use clap::{Parser, parser, Subcommand};
 
 /// Object which contains comma separated list of targets to promote
 #[derive(Debug, Clone)]
 pub struct Targets {
-    //TODO: Could also be nice to have an error message when the user inputs 1 or more images 
+    //TODO: Could also be nice to have an error message when the user inputs 1 or more images
     //      without a colon in it (indicating they didn't specify the object version)
     //      note this error would only appear if the promotion_type is images
-    targets: Vec<String>
+    targets: Vec<String>,
 }
 
 ///Iterator wrapper which stores the index state of our iterator
 /// Without this wrapper, we would have to store inedex in Targets... which is just wrong
-pub struct TargetsIterator <'a> {
+pub struct TargetsIterator<'a> {
     targets: &'a Targets,
     index: usize,
 }
@@ -34,7 +34,9 @@ impl<'a> Iterator for TargetsIterator<'a> {
 
 impl Targets {
     fn new() -> Targets {
-        Targets { targets: Vec::new() }
+        Targets {
+            targets: Vec::new(),
+        }
     }
 
     fn push(&mut self, s: String) {
@@ -52,8 +54,8 @@ impl Targets {
     // Special logic to ensure that when user input is just the return key (nothing entered)
     // then it is treated as a 0 length vec, instead of 1 length with a "" as the value
     pub fn len(&self) -> usize {
-        if self.targets.len() == 1 {
-            if self.targets.get(0).unwrap().len() > 0 {
+        if self.targets.len() <= 1 {
+            if !self.targets.get(0).unwrap().is_empty() {
                 return self.targets.len();
             }
             return 0;
@@ -64,10 +66,10 @@ impl Targets {
 
 impl std::fmt::Display for Targets {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut string_builder = String::new(); 
+        let mut string_builder = String::new();
         // Hacky .clone() shenanigans. Aim to clean up
         for s in self.targets.clone().into_iter() {
-            if string_builder.len() > 0 {
+            if !string_builder.is_empty() {
                 string_builder.push_str(", ");
             }
             string_builder.push_str(&s.clone());
@@ -99,7 +101,7 @@ impl std::str::FromStr for Targets {
 #[derive(Subcommand)]
 pub enum Commands {
     Prompt,
-    Line(PromotionBatch)
+    Line(PromotionBatch),
 }
 
 #[derive(Parser)]
@@ -128,24 +130,21 @@ pub struct PromotionBatch {
     // Temporarily a string, might be worth making this an Enum? (if I can figure it out)
     // Should have `images`, `config-maps`, `secrets`, potentially `templates`
     // #[arg(short, long)]
-    pub promotion_type: String, 
+    pub promotion_type: String,
 
     // #[arg(short, long)]
-    pub targets: Targets
+    pub targets: Targets,
 }
 
 impl std::fmt::Display for PromotionBatch {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f,
+        write!(
+            f,
             "(Instance: {}, Path: {}->{}, Promotion Type: {}, {})",
-            &self.instance,
-            &self.source, &self.destination,
-            &self.promotion_type,
-            &self.targets
+            &self.instance, &self.source, &self.destination, &self.promotion_type, &self.targets
         )
     }
 }
-
 
 #[test]
 fn test_targets() {

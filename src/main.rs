@@ -2,15 +2,15 @@
 
 use read_input::prelude::*;
 
-use log::{info, warn, debug};
-use clap::{Parser};
+use clap::Parser;
+use log::{debug, info, warn};
 
 mod domain;
 mod utils;
-use crate::domain::Targets;
 use crate::domain::CliArguments;
-use crate::domain::PromotionBatch;
 use crate::domain::Commands;
+use crate::domain::PromotionBatch;
+use crate::domain::Targets;
 use crate::utils::initialize_logger;
 use crate::utils::parse_prompt;
 
@@ -19,10 +19,7 @@ fn main() {
     initialize_logger();
     let args = CliArguments::parse();
     let promotion_batch = match args.command {
-        Commands::Prompt => {
-            let promotion_batch = parse_prompt();
-            promotion_batch
-        },
+        Commands::Prompt => parse_prompt(),
         Commands::Line(promotion_batch) => {
             debug!("Arguments provided: {:?}", promotion_batch);
             promotion_batch
