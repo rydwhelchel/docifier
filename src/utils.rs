@@ -24,9 +24,6 @@ pub fn parse_prompt() -> PromotionBatch {
     print!("Please provide the promotion type: ");
     let promotion_type = input::<String>().get();
 
-    //TODO: Have some branching paths here on what user input should look like
-    //      IE: if images, should probably have a colon in the name of each image to denote version
-    //      throw warning and ask user if they intended to leave out a colon on each entry
     print!(
         "Please provide a comma separated list of the {}: ",
         promotion_type
@@ -34,6 +31,7 @@ pub fn parse_prompt() -> PromotionBatch {
     let mut targets = input::<Targets>().get();
 
     //TODO: this whole section feels ugly, review later to see if there is a better way to do this
+    //      currently this just validates images, should have a branching path here to validate templates/config maps/secrets (no colon)
     loop {
         //beware this targets.clone(), could be expensive, especially since its in a loop
         let err_list = validate_targets(&promotion_type, targets.clone());
@@ -51,6 +49,10 @@ pub fn parse_prompt() -> PromotionBatch {
             break;
         }
     }
+
+    //TODO: Consider adding a y/n prompt asking if the user wants to insert an additional promotion batch
+    //      that way we can actually create a list of batches to insert into the file at once
+    //      if we do that, we need to change the return type of this method to a vec of promotionbatches
 
     PromotionBatch {
         instance,
@@ -72,7 +74,6 @@ pub fn validate_targets(promotion_type: &str, targets: Targets) -> Vec<String> {
         }
         err_list
     } else {
-        println!("Ur mom");
         err_list
     }
 }
