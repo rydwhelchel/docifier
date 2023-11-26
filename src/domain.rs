@@ -1,24 +1,23 @@
-use clap::{parser, Parser, Subcommand};
+use clap::{Parser, Subcommand};
 use std::convert::Infallible;
+use serde::Deserialize;
+
+//TODO: Clean up struct comments
 
 /// Object which contains comma separated list of targets to promote
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Targets {
-    //TODO: Could also be nice to have an error message when the user inputs 1 or more images
-    //      without a colon in it (indicating they didn't specify the object version)
-    //      note this error would only appear if the promotion_type is images
     targets: Vec<String>,
 }
 
 ///Iterator wrapper which stores the index state of our iterator
-/// Without this wrapper, we would have to store inedex in Targets... which is just wrong
+/// Without this wrapper, we would have to store index in Targets
 pub struct TargetsIterator<'a> {
     targets: &'a Targets,
     index: usize,
 }
 
 impl<'a> Iterator for TargetsIterator<'a> {
-    //This is a pattern I really will need to get familiar with
     type Item = &'a String;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -43,7 +42,6 @@ impl Targets {
         self.targets.push(s);
     }
 
-    //Awesome! I like this pattern now :)
     pub fn iter(&self) -> TargetsIterator {
         TargetsIterator {
             targets: self,
@@ -51,8 +49,7 @@ impl Targets {
         }
     }
 
-    // Special logic to ensure that when user input is just the return key (nothing entered)
-    // then it is treated as a 0 length vec, instead of 1 length with a "" as the value
+    //treat empty string as a non element (zero length)
     pub fn len(&self) -> usize {
         if self.targets.len() <= 1 {
             if !self.targets.get(0).unwrap().is_empty() {
@@ -67,19 +64,18 @@ impl Targets {
 impl std::fmt::Display for Targets {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut string_builder = String::new();
-        // Hacky .clone() shenanigans. Aim to clean up
         for s in self.targets.clone().into_iter() {
             if !string_builder.is_empty() {
-                string_builder.push_str(", ");
+                string_builder.push(',');
             }
             string_builder.push_str(&s.clone());
         }
-        write!(f, "Targets: [{}]", string_builder)
+        write!(f, "{}", string_builder)
     }
 }
 
 impl TryFrom<&str> for Targets {
-    type Error = Infallible; // If not infallible, there is an error I made for this in dead_code
+    type Error = Infallible;
 
     fn try_from(s: &str) -> Result<Self, Self::Error> {
         let seperated_list = s.split(',');
@@ -95,6 +91,35 @@ impl std::str::FromStr for Targets {
     type Err = Infallible;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Targets::try_from(s)
+    }
+}
+
+impl Targets {
+    pub fn prepare(&mut self) -> Vec<Targets> {
+        let mut splits = self.targets.len() / 3;
+        if self.targets.len() % 3 > 0 {
+            splits += 1;
+        }
+        
+        let mut chunks: Vec<Targets> = Vec::new();
+
+        //TODO: Clean up this logic
+        while splits > 0 {
+            let mut count = 3;
+            let mut temp_vec = Vec::new();
+            while count > 0 {
+                temp_vec.push(self.targets.remove(0));
+                if self.targets.is_empty() {
+                    break;
+                }
+                count -= 1;
+            }
+            let temp_targets = Targets { targets: temp_vec };
+            chunks.push(temp_targets);
+            splits -= 1;
+        }
+
+        chunks
     }
 }
 
@@ -116,8 +141,9 @@ pub struct CliArguments {
 ///     Destination: name of the destination environment which we want to promote to
 ///     PromotionType: Type that is getting promoted (object/image)
 ///     Targets: comma separated list of objects/images which we want to promote
-#[derive(Parser, Debug)]
+#[derive(Parser, Debug, Clone)]
 pub struct PromotionBatch {
+    //TODO: Correct this object for single line parsing
     // #[arg(short, long)]
     pub instance: String,
 
@@ -127,7 +153,8 @@ pub struct PromotionBatch {
     // #[arg(short, long)]
     pub destination: String,
 
-    // Temporarily a string, might be worth making this an Enum? (if I can figure it out)
+    //TODO: Need to give user hints on what to pass for this
+    // Temporarily a string, might be worth making this an Enum?
     // Should have `images`, `config-maps`, `secrets`, potentially `templates`
     // #[arg(short, long)]
     pub promotion_type: String,
@@ -146,13 +173,51 @@ impl std::fmt::Display for PromotionBatch {
     }
 }
 
+#[derive(Debug, Deserialize)]
+pub struct FormatLines {
+    pub instance: String,
+    pub instance_subline: String,
+    pub path: String,
+    pub promote_images: String,
+    pub promote_config_maps: String,
+    pub promote_secrets: String,
+    pub promote_templates: String
+}
+
 #[test]
 fn test_targets() {
     //Targets error type is infallible, so this test _should_ be pointless
-    let targets = Targets::try_from("asdf,fdsa,1234,4321").unwrap().targets;
-    //Disgusting test...
+    let targets: Vec<String> = Targets::try_from("asdf,fdsa,1234,4321").unwrap().targets;
     assert_eq!(&"asdf".to_string(), targets.get(0).unwrap());
     assert_eq!(&"fdsa".to_string(), targets.get(1).unwrap());
     assert_eq!(&"1234".to_string(), targets.get(2).unwrap());
     assert_eq!(&"4321".to_string(), targets.get(3).unwrap())
+}
+
+#[test]
+fn test_targets_prepare() {
+    let targets = Targets::try_from("1,2,3,4,5").unwrap();
+    let prepped = targets.clone().prepare();
+    assert_eq!(prepped, vec![Targets { targets: vec!["1".to_string(),"2".to_string(),"3".to_string()]},Targets { targets: vec!["4".to_string(),"5".to_string()]}])
+}
+
+#[test]
+fn test_targets_prepare_exact_three() {
+    let targets = Targets::try_from("1,2,3").unwrap();
+    let prepped = targets.clone().prepare();
+    assert_eq!(prepped, vec![Targets { targets: vec!["1".to_string(),"2".to_string(),"3".to_string()]}])
+}
+
+#[test]
+fn test_targets_prepare_long_list() {
+    let targets = Targets::try_from("1,2,3,4,5,6,7,8,9").unwrap();
+    let prepped = targets.clone().prepare();
+    assert_eq!(prepped, vec![Targets { targets: vec!["1".to_string(),"2".to_string(),"3".to_string()]},Targets { targets: vec!["4".to_string(),"5".to_string(),"6".to_string()]},Targets { targets: vec!["7".to_string(),"8".to_string(),"9".to_string()]}])
+}
+
+#[test]
+fn test_targets_prepare_long_list_plus_one() {
+    let targets = Targets::try_from("1,2,3,4,5,6,7,8,9,10").unwrap();
+    let prepped = targets.clone().prepare();
+    assert_eq!(prepped, vec![Targets { targets: vec!["1".to_string(),"2".to_string(),"3".to_string()]},Targets { targets: vec!["4".to_string(),"5".to_string(),"6".to_string()]},Targets { targets: vec!["7".to_string(),"8".to_string(),"9".to_string()]},Targets { targets: vec!["10".to_string()]}])
 }

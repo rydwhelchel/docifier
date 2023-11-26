@@ -1,3 +1,7 @@
 /target
 dead_code*
 .config
+config*
+*.txt
+example.md
+output.md
