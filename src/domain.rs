@@ -2,8 +2,6 @@ use clap::{Parser, Subcommand};
 use std::convert::Infallible;
 use serde::Deserialize;
 
-//TODO: Clean up struct comments
-
 /// Object which contains comma separated list of targets to promote
 #[derive(Debug, Clone, PartialEq)]
 pub struct Targets {
@@ -123,43 +121,38 @@ impl Targets {
     }
 }
 
-#[derive(Subcommand)]
-pub enum Commands {
-    Prompt,
-    Line(PromotionBatch),
-}
-
 #[derive(Parser)]
 pub struct CliArguments {
     #[command(subcommand)]
     pub command: Commands,
 }
 
+#[derive(Subcommand)]
+pub enum Commands {
+    New(PromotionBatch),
+    Add(PromotionBatch)
+}
+
 /// Contains all information needed to document a batch
-///     Instance: name of instance containing the environments
-///     Source: name of the source environment which we want to promote from
-///     Destination: name of the destination environment which we want to promote to
-///     PromotionType: Type that is getting promoted (object/image)
-///     Targets: comma separated list of objects/images which we want to promote
 #[derive(Parser, Debug, Clone)]
 pub struct PromotionBatch {
     //TODO: Correct this object for single line parsing
-    // #[arg(short, long)]
+    /// Name of instance containing the environments
     pub instance: String,
 
-    // #[arg(short, long)]
+    /// Name of the source environment which we want to promote from
     pub source: String,
 
-    // #[arg(short, long)]
+    /// Name of the destination environment which we want to promote to
     pub destination: String,
 
     //TODO: Need to give user hints on what to pass for this
     // Temporarily a string, might be worth making this an Enum?
     // Should have `images`, `config-maps`, `secrets`, potentially `templates`
-    // #[arg(short, long)]
+    /// Type that is getting promoted ('images', 'config-maps', 'secrets', 'templates')
     pub promotion_type: String,
 
-    // #[arg(short, long)]
+    /// Comma separated list of objects/images which we want to promote
     pub targets: Targets,
 }
 
@@ -173,6 +166,15 @@ impl std::fmt::Display for PromotionBatch {
     }
 }
 
+pub enum LineType {
+    Instance(String),
+    Path(String, String),
+    PromoteImages(Vec<String>),
+    PromoteConfigMaps(Vec<String>),
+    PromoteSecrets(Vec<String>),
+    PromoteTemplates(Vec<String>),
+}
+
 #[derive(Debug, Deserialize)]
 pub struct FormatLines {
     pub instance: String,
@@ -182,6 +184,101 @@ pub struct FormatLines {
     pub promote_config_maps: String,
     pub promote_secrets: String,
     pub promote_templates: String
+}
+
+impl FormatLines {
+    pub fn comparable(&self) -> ComparableFormatLines {
+        let instance = self.instance.split(' ').map(|x| x.to_string()).collect();
+        let path = self.path.split(' ').map(|x| x.to_string()).collect();
+        let promote_images = self.promote_images.split(' ').map(|x| x.to_string()).collect();
+        let promote_config_maps = self.promote_config_maps.split(' ').map(|x| x.to_string()).collect();
+        let promote_secrets = self.promote_secrets.split(' ').map(|x| x.to_string()).collect();
+        let promote_templates = self.promote_templates.split(' ').map(|x| x.to_string()).collect();
+
+        ComparableFormatLines {
+            instance,
+            path,
+            promote_images,
+            promote_config_maps,
+            promote_secrets,
+            promote_templates
+        }
+    }
+
+}
+
+#[derive(Debug)]
+pub struct ComparableFormatLines {
+    pub instance: Vec<String>,
+    pub path: Vec<String>,
+    pub promote_images: Vec<String>,
+    pub promote_config_maps: Vec<String>,
+    pub promote_secrets: Vec<String>,
+    pub promote_templates: Vec<String>
+}
+
+impl ComparableFormatLines {
+    //todo: write test cases
+    pub fn evaluate(&self, line: String) -> Result<LineType, &str> {
+        let line: Vec<String> = line.split(' ').map(|x| x.to_string()).collect();
+        
+        // Test Instance
+        let value = compare_lines(&self.instance, &line);
+        if value != None {
+            let value = value.unwrap();
+            assert!(value.len() == 1, "Incorrect length for values extracted from instance line");
+            return Ok(LineType::Instance(value.get(0).unwrap().to_string()));
+        }
+
+        // Test Path 
+        let value = compare_lines(&self.path, &line);
+        if value != None {
+            let value = value.unwrap();
+            assert!(value.len() == 2, "Incorrect length for values extracted from instance line");
+            return Ok(LineType::Path(value.clone().get(0).unwrap().to_string(),
+                value.get(1).unwrap().to_string()));
+        }
+
+        // Test Images
+        let value = compare_lines(&self.promote_images, &line);
+        if value != None {
+            return Ok(LineType::PromoteImages(value.unwrap()))
+        }
+
+        // Test Config Maps
+        let value = compare_lines(&self.promote_config_maps, &line);
+        if value != None {
+            return Ok(LineType::PromoteConfigMaps(value.unwrap()))
+        }
+
+        // Test Secrets
+        let value = compare_lines(&self.promote_secrets, &line);
+        if value != None {
+            return Ok(LineType::PromoteSecrets(value.unwrap()))
+        }
+
+        // Test Templates
+        let value = compare_lines(&self.promote_templates, &line);
+        if value != None {
+            return Ok(LineType::PromoteTemplates(value.unwrap()))
+        }
+        return Err("Did not match")
+    }
+
+}
+
+fn compare_lines(format_line: &Vec<String>, line: &Vec<String>) -> Option<Vec<String>> {
+    let mut value = vec![];
+    for (i, elem) in format_line.iter().enumerate() {
+        if i >= line.len() {
+            return None
+        } else if elem.contains('{') {
+            value.push(line.get(i).unwrap().to_string())
+        } else if elem != line.get(i).unwrap() {
+            return None
+        }
+    }
+    return Some(value)
 }
 
 #[test]

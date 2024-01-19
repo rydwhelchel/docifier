@@ -1,9 +1,14 @@
 use std::collections::HashMap;
+use std::fs::File;
+use std::io::BufReader;
+use std::io::prelude::*;
+use strfmt::strfmt;
 
 use read_input::prelude::*;
 
 use env_logger::Env;
 
+use crate::domain::FormatLines;
 use crate::domain::PromotionBatch;
 use crate::domain::Targets;
 
@@ -12,59 +17,6 @@ pub fn initialize_logger() {
         .filter_or("MY_LOG", "debug")
         .write_style_or("MY_LOG_STYLE", "always");
     env_logger::init_from_env(env)
-}
-
-/// Prompts the user to input all relevant fields for a PromotionBatch
-///     then collects user's input and constructs and returns a PromotionBatch
-pub fn parse_prompt() -> PromotionBatch {
-    print!("Please provide the instance for the source and destination: ");
-    let instance = input::<String>().get();
-    print!("Please provide the source env: ");
-    let source = input::<String>().get();
-    print!("Please provide the destination env: ");
-    let destination = input::<String>().get();
-    print!("Please provide the promotion type: ");
-    let promotion_type = input::<String>().get();
-
-    print!(
-        "Please provide a comma separated list of the {}: ",
-        promotion_type
-    );
-    let mut targets = input::<Targets>().get();
-
-    //TODO: this whole section feels ugly, review later to see if there is a better way to do this
-    //      currently this just validates images, should have a branching path here to validate templates/config maps/secrets (no colon)
-    //      maybe move this section into another method to parse the targets ? idk
-    loop {
-        //beware this targets.clone(), could be expensive, especially since its in a loop
-        let err_list = validate_targets(&promotion_type, targets.clone());
-        if !err_list.is_empty() {
-            println!("The following targets do not match our schema for the provided promotion_type : {:?}", err_list);
-            println!("If you would like to update, please provide a new comma separated list with the updated targets list");
-            print!("Otherwise, just press enter and we'll continue on with the existing targets list: ");
-            let new_targets = input::<Targets>().get();
-            if new_targets.len() > 0 {
-                targets = new_targets;
-            } else {
-                break;
-            }
-        } else {
-            break;
-        }
-    }
-
-    //TODO: Consider adding a y/n prompt asking if the user wants to insert an additional promotion batch
-    //      that way we can actually create a list of batches to insert into the file at once
-    //      if we do that, we need to change the return type of this method to a vec of promotionbatches
-    //TODO: The above logic would need to be in the location which this function is called in
-
-    PromotionBatch {
-        instance,
-        source,
-        destination,
-        promotion_type,
-        targets,
-    }
 }
 
 pub fn mapify(batch: PromotionBatch) -> HashMap<String, String> {
@@ -84,8 +36,57 @@ pub fn validate_targets(promotion_type: &str, targets: Targets) -> Vec<String> {
                 err_list.push(target.clone());
             }
         }
-        err_list
-    } else {
-        err_list
+    } else if promotion_type.eq_ignore_ascii_case("config-maps") 
+    || promotion_type.eq_ignore_ascii_case("config-map") 
+    || promotion_type.eq_ignore_ascii_case("templates") 
+    || promotion_type.eq_ignore_ascii_case("template") {
+        for target in targets.iter() {
+            if target.contains(':') {
+                err_list.push(target.clone());
+            }
+        }
+    }
+    err_list
+}
+
+pub fn read_file(file_name: &str, format_lines: &FormatLines) -> Vec<PromotionBatch> {
+    // 1. Open file with BufReader
+    // 2. Convert to Vec of lines
+    // 3. Parse instance line
+    // 4. Parse path line (should be 2 down from instance line)
+    // 5. Parse all promote lines (1 of 4)
+    // 6. Push promotion batch to list
+    // 7. Find next header line (path or instance)
+    // 8. Create new promotion batch, start again from 5
+    let path = "output.md";
+    let file = File::open(path).unwrap();
+    let reader = BufReader::new(file);
+    let input = reader.lines()
+        .flatten()
+        .collect::<Vec<String>>();
+
+    todo!()
+}
+
+pub fn write_instance(args: &HashMap<String, String>, output: &mut File, format_lines: &FormatLines) {
+    // write instance + instance subline
+    writeln!(output, "{}", strfmt(&format_lines.instance, args).unwrap()).unwrap();
+    writeln!(output, "{}", strfmt(&format_lines.instance_subline, args).unwrap()).unwrap();
+}
+
+pub fn write_path(args: &HashMap<String, String>, output: &mut File, format_lines: &FormatLines) {
+    // write path
+    writeln!(output, "{}", strfmt(&format_lines.path, &args).unwrap()).unwrap();
+}
+
+pub fn write_target(args: &mut HashMap<String, String>, output: &mut File,
+    format_lines: &FormatLines, batches: &mut Vec<Targets>, line_type: &str) {
+    // write target bullets
+    while let targets = batches.remove(0) {
+        args.insert("targets".to_string(), targets.to_string());
+        writeln!(output, "{}", strfmt(line_type, &args).unwrap()).unwrap();
+        if batches.is_empty() {
+            break;
+        }
     }
 }
