@@ -37,7 +37,7 @@ impl Targets {
     }
 
     fn push(&mut self, s: String) {
-        self.targets.push(s);
+        self.targets.push(s.trim().to_string());
     }
 
     #[allow(dead_code)]
@@ -122,7 +122,7 @@ impl Targets {
     }
 }
 
-/// Contains all information needed to document a batch
+/// Pass in the following arguments to create a chunk of documentation for the passed in arguments
 #[derive(Parser, Debug, Clone)]
 pub struct PromotionBatch {
     /// Name of instance containing the environments
@@ -137,7 +137,8 @@ pub struct PromotionBatch {
     /// Type that is getting promoted ('images', 'config-maps', 'secrets')
     pub promotion_type: String,
 
-    /// Comma separated list of objects/images which we want to promote
+    /// Comma separated list of objects/images which we want to promote, wrap in quotes to allow
+    /// spaces
     pub targets: Targets,
 }
 

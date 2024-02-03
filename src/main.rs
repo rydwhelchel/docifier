@@ -1,6 +1,7 @@
 use clap::Parser;
 use static_toml::static_toml;
 use std::io::Error;
+use std::process;
 
 mod domain;
 mod utils;
@@ -20,7 +21,11 @@ fn main() -> Result<(), Error> {
         "image" | "images" => &FORMAT_LINES.promote_images,
         "secret" | "secrets" => &FORMAT_LINES.promote_secrets,
         "config-map" | "config-maps" | "config_map" | "config_maps" => &FORMAT_LINES.promote_config_maps,
-        _ => panic!("The provided promotion type is not valid {}", batch.promotion_type)
+        _ => {
+            eprintln!("The provided promotion type is not valid: {}", batch.promotion_type);
+            eprintln!("Please provide a valid promotion type: \"config-map\", \"secret\", \"image\"");
+            process::exit(1)
+        }
     };
 
     //echo output
@@ -30,6 +35,4 @@ fn main() -> Result<(), Error> {
 
     Ok(())
 }
-
-
 
