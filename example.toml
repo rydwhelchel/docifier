@@ -1,7 +1,5 @@
-instance = Instance: {instance}
-instance_subline = Insert additional information about the {instance} here
-path = {source} -> {destination}
-promote_images = Promote images: {targets}
-promote_config_maps = Promote config maps: {targets}
-promote_secrets = Promote secrets: {targets}
-promote_templates = Promote templates: {targets}
+instance = "# Instance: {instance}"
+path = "## {source} -> {destination}"
+promote_images = "* Promote images: {targets}"
+promote_config_maps = "* Promote config maps: {targets}"
+promote_secrets = "* Promote secrets: {targets}"
