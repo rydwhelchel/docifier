@@ -15,11 +15,7 @@ use crate::domain::FormatLines;
 use crate::utils::{initialize_logger, mapify, write_instance, write_path, write_target};
 
 //TODO: future enhancements
-//          Add logging to all steps of the process (info/debug)
-//          Ask user if they want to input another batch
-//          Ask user if they want to specify a path for output
-//          If file exists, ask user if they want to overwrite or add to
-//          If there already exists an instance and path for one of the batches you have, add to it
+//          Ask user if they want to specify a path for output -o option
 
 fn main() -> Result<(), Error> {
     initialize_logger();
@@ -42,11 +38,11 @@ fn main() -> Result<(), Error> {
     // Variable which stores the different lines we want to format arguments into (ie Instance Line)
     let format_lines: FormatLines = toml::from_str(&config_file).unwrap();
 
-    //mutable? really?
     let mut args = mapify(promotion_batch.clone());
     let mut batches = promotion_batch.targets.clone().prepare();
     let line_type = match promotion_batch.promotion_type.as_str() {
         "image" | "images" => &format_lines.promote_images,
+        //TODO: remove template, this prob is not worth having as templates usually have arguments passed to them 
         "template" | "templates" => &format_lines.promote_templates,
         "secret" | "secrets" => &format_lines.promote_secrets,
         "config-map" | "config-maps" => &format_lines.promote_config_maps,

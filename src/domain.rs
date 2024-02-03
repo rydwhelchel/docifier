@@ -258,10 +258,10 @@ impl ComparableFormatLines {
         }
 
         // Test Templates
-        let value = compare_lines(&self.promote_templates, &line);
-        if value != None {
-            return Ok(LineType::PromoteTemplates(value.unwrap()))
-        }
+        // let value = compare_lines(&self.promote_templates, &line);
+        // if value != None {
+        //     return Ok(LineType::PromoteTemplates(value.unwrap()))
+        // }
         return Err("Did not match")
     }
 
@@ -272,6 +272,9 @@ fn compare_lines(format_line: &Vec<String>, line: &Vec<String>) -> Option<Vec<St
     for (i, elem) in format_line.iter().enumerate() {
         if i >= line.len() {
             return None
+        //todo: instead of just popping this into a vec, we should check
+        //  which type it is and then add it into a vec as a tuple with 
+        //  enum identifier and then value
         } else if elem.contains('{') {
             value.push(line.get(i).unwrap().to_string())
         } else if elem != line.get(i).unwrap() {
